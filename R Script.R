@@ -1,1 +1,31 @@
 library(Hmisc)
+library(readr)
+library(readxl)
+library(dplyr)
+
+data_csv1 <- read_csv("D:/APU/Y2 Sem 3/Programming for Data Analysis/Assignment/AssignmentDatasets/HackingData_Part1.csv")
+data_xlsx2 <- read_excel("D:/APU/Y2 Sem 3/Programming for Data Analysis/Assignment/AssignmentDatasets/HackingData_Part2.xlsx")
+data_txt3  <- read_delim("D:/APU/Y2 Sem 3/Programming for Data Analysis/Assignment/AssignmentDatasets/HackingData_Part3.txt",
+                        delim = "\t")
+
+colnames(data_csv1)
+colnames(data_xlsx2)
+colnames(data_txt3)
+ 
+data_csv1 <- data_csv1 |>
+  mutate(Date = as.character(Date))
+
+data_xlsx2 <- data_xlsx2 |>
+  mutate(Date = as.character(Date))
+
+data_txt3 <- data_txt3 |>
+  mutate(Date = as.character(Date))
+
+combined_data <- bind_rows(
+  data_csv1,
+  data_xlsx2,
+  data_txt3
+)
+
+dim(combined_data)
+glimpse(combined_data)
