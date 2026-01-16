@@ -12,14 +12,20 @@ colnames(data_csv1)
 colnames(data_xlsx2)
 colnames(data_txt3)
  
+numeric_cols <- c("Ransom", "DownTime", "Loss")
+
 data_csv1 <- data_csv1 |>
-  mutate(Date = as.character(Date))
+  mutate(across(all_of(numeric_cols), as.numeric))
 
 data_xlsx2 <- data_xlsx2 |>
-  mutate(Date = as.character(Date))
+  mutate(across(all_of(numeric_cols), as.numeric))
 
 data_txt3 <- data_txt3 |>
-  mutate(Date = as.character(Date))
+  mutate(across(all_of(numeric_cols), as.numeric))
+
+data_csv1  <- data_csv1  |> mutate(Date = as.character(Date))
+data_xlsx2 <- data_xlsx2 |> mutate(Date = as.character(Date))
+data_txt3  <- data_txt3  |> mutate(Date = as.character(Date))
 
 combined_data <- bind_rows(
   data_csv1,
@@ -29,3 +35,5 @@ combined_data <- bind_rows(
 
 dim(combined_data)
 glimpse(combined_data)
+
+head(combined_data)
