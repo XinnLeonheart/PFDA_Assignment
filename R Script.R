@@ -8,6 +8,7 @@ data_xlsx2 <- read_excel("D:/APU/Y2 Sem 3/Programming for Data Analysis/Assignme
 data_txt3  <- read_delim("D:/APU/Y2 Sem 3/Programming for Data Analysis/Assignment/AssignmentDatasets/HackingData_Part3.txt",
                         delim = "\t")
 
+# check column name
 colnames(data_csv1)
 colnames(data_xlsx2)
 colnames(data_txt3)
@@ -27,6 +28,7 @@ data_csv1  <- data_csv1  |> mutate(Date = as.character(Date))
 data_xlsx2 <- data_xlsx2 |> mutate(Date = as.character(Date))
 data_txt3  <- data_txt3  |> mutate(Date = as.character(Date))
 
+# combine rows of 3 files
 combined_data <- bind_rows(
   data_csv1,
   data_xlsx2,
@@ -38,4 +40,13 @@ glimpse(combined_data)
 
 head(combined_data)
 
+char_cols <- sapply(combined_data, is.character)
+names(char_cols[char_cols])
+
+combined_data[char_cols] <- lapply(
+  combined_data[char_cols],
+  function(x) iconv(x, from = "", to = "UTF-8", sub = "")
+)
+
+# see missing content
 describe(combined_data)
