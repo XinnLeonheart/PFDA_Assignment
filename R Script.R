@@ -37,3 +37,5 @@ dim(combined_data)
 glimpse(combined_data)
 
 head(combined_data)
+
+describe(combined_data)
