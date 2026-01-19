@@ -50,3 +50,8 @@ combined_data[char_cols] <- lapply(
 
 # see missing content
 describe(combined_data)
+
+# convert Country column's data to lowercase
+
+
+# convert Encoding column's data to lowercase
