@@ -51,7 +51,41 @@ combined_data[char_cols] <- lapply(
 # see missing content
 describe(combined_data)
 
-# convert Country column's data to lowercase
+#Notify
 
 
-# convert Encoding column's data to lowercase
+#URL
+
+
+#IP
+
+
+#Country
+# CONVERT Country COLUMN'S DATA TO LOWERCASE
+combined_data$Country <- tolower(combined_data$Country)
+# MAKE SURE DONT HAVE SPACE IN THE DATA
+combined_data$Country <- trimws(combined_data$Country)
+# CONVERT UNKNOWN VALUES TO NA
+combined_data$Country[combined_data$Country == "unknown"] <- NA
+
+#WebServer
+combined_data$WebServer <- tolower(combined_data$WebServer)
+combined_data$Country <- trimws(combined_data$WebServer)
+combined_data$WebServer[combined_data$WebServer == "unknown"] <- NA
+
+#Encoding
+# CONVERT ENCODING COLUMN'S DATA TO LOWERCASE
+combined_data$Encoding <- tolower(combined_data$Encoding)
+combined_data$Encoding <- trimws(combined_data$Encoding)
+combined_data$Encoding[combined_data$Encoding == "null"] <- NA
+
+#Ransom
+
+
+#DownTime
+
+
+#Loss
+
+
+# REMOVE DUPLICATE DATA
