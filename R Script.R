@@ -96,7 +96,8 @@ fulldata <- fulldata %>%
 summary(combined_data[, c("ransom", "downtime", "loss")])
 
 # REMOVE DUPLICATE DATA
-
+combined_data <- combined_data |>
+  distinct()
 
 # replace NA with median on ransom, downtime, loss without affect outliers
 combined_data <- combined_data %>%
