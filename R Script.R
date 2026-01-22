@@ -59,7 +59,6 @@ combined_data$Country <- tolower(combined_data$Notify)
 
 #URL
 combined_data$URL <- trimws(combined_data$URL)
-combined_data$Country <- tolower(combined_data$URL)
 
 #IP
 combined_data$IP <- trimws(combined_data$IP)
