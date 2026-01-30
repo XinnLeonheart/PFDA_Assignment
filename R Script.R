@@ -2,6 +2,7 @@ library(Hmisc)
 library(readr)
 library(readxl)
 library(dplyr)
+library(tidyverse)
 
 data_csv1 <- read_csv("D:/APU/Y2 Sem 3/Programming for Data Analysis/Assignment/AssignmentDatasets/HackingData_Part1.csv")
 data_xlsx2 <- read_excel("D:/APU/Y2 Sem 3/Programming for Data Analysis/Assignment/AssignmentDatasets/HackingData_Part2.xlsx")
@@ -83,8 +84,14 @@ combined_data$Encoding <- trimws(combined_data$Encoding)
 combined_data$Encoding[combined_data$Encoding == "null"] <- NA
 
 #Ransom
+
+
 #DownTime
+
+
 #Loss
+
+
 # invalid values, the downtime and loss must not including negative value
 # replace invalid values with NA
 fulldata <- fulldata %>%
@@ -106,6 +113,22 @@ combined_data <- combined_data %>%
     downtime = ifelse(is.na(downtime), median(downtime, na.rm = TRUE), downtime),
     loss     = ifelse(is.na(loss), median(loss, na.rm = TRUE), loss)
   )
+
+#REMOVE DUPLICATE ROWS BASED ON ALL COLUMNS
+df_unique <- unique (df)
+
+#REMOVE DUPLICATE ROWS BASED ON SPECIFIC COLUMNS
+df_unique <-df[!duplicated(df)]
+
+#REMOVE DUPLICATES BASED ON SPECIFIC COLUMNS
+df_unique <- df[!duplicated(df$colnames),]
+
+# REMOVE DUPLICATE DATA
+df_unique <- df %>% distinct()
+
+#REMOVE DUPLICATED BASED ON SPECIFIC COLUMS
+df_unique <- df %>% distinct (column1, column2, .keep_all = TRUE)
+
 
 # Resolving inconsistent categorical values 
 # show raw inconsistencies first , inspecting unique values before cleaning
