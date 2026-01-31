@@ -3,6 +3,8 @@ library(readr)
 library(readxl)
 library(dplyr)
 library(tidyverse)
+library(stringi)
+library(stringr)
 
 data_csv1 <- read_csv("D:/APU/Y2 Sem 3/Programming for Data Analysis/Assignment/AssignmentDatasets/HackingData_Part1.csv")
 data_xlsx2 <- read_excel("D:/APU/Y2 Sem 3/Programming for Data Analysis/Assignment/AssignmentDatasets/HackingData_Part2.xlsx")
@@ -36,9 +38,11 @@ combined_data <- bind_rows(
   data_txt3
 )
 
+names(combined_data) <- tolower(names(combined_data))
+
 dim(combined_data)
 glimpse(combined_data)
-
+nrow(combined_data)
 head(combined_data)
 
 char_cols <- sapply(combined_data, is.character)
@@ -49,58 +53,145 @@ combined_data[char_cols] <- lapply(
   function(x) iconv(x, from = "", to = "UTF-8", sub = "")
 )
 
+# check the structure and summary statistics of the combined dataset
+summary(combined_data)
+
 # see missing content
 describe(combined_data)
-# handling missing values + check missing value
-colSums(is.na(fulldata))
 
 #Notify
-combined_data$Notify <- trimws(combined_data$Notify)
-combined_data$Country <- tolower(combined_data$Notify)
+combined_data$notify <- trimws(combined_data$notify)
+combined_data$notify <- tolower(combined_data$notify)
+combined_data$notify[combined_data$notify == "unknown"] <- NA
 
 #URL
-combined_data$URL <- trimws(combined_data$URL)
+combined_data$url <- trimws(combined_data$url)
+valid_url <- str_detect(
+  combined_data$url,
+  "^(https?|ftp)://"
+)
+combined_data$url[!valid_url] <- NA
 
 #IP
-combined_data$IP <- trimws(combined_data$IP)
+combined_data$ip <- trimws(combined_data$ip)
+combined_data$ip <- as.character(combined_data$ip)
+combined_data$ip[combined_data$ip == ""] <- NA
+combined_data$ip[tolower(combined_data$ip) %in% c("unknown", "null", "na")] <- NA
+valid_ip <- str_detect(
+  combined_data$ip,
+  "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\\.)){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+)
+
+combined_data$ip[!valid_ip] <- NA
 
 #Country
 # CONVERT Country COLUMN'S DATA TO LOWERCASE
-combined_data$Country <- tolower(combined_data$Country)
+combined_data$country <- tolower(combined_data$country)
 # MAKE SURE DONT HAVE SPACE IN THE DATA
-combined_data$Country <- trimws(combined_data$Country)
+combined_data$country <- trimws(combined_data$country)
 # CONVERT UNKNOWN VALUES TO NA
-combined_data$Country[combined_data$Country == "unknown"] <- NA
+combined_data$country[combined_data$country == "unknown"] <- NA
+#Fix spelling
+combined_data$country <- recode(combined_data$country,
+   # Spelling variants and abbreviations
+   "united state"         = "usa",
+   "united states"        = "usa",
+   "uk"                   = "united kingdom",
+   "united kingd"         = "united kingdom",
+   "viet nam"             = "vietnam",
+   "czech republ"         = "czech republic",
+   "new caledoni"         = "new caledonia",
+   "costarica"            = "costa rica",
+   "bruneidarussalam"     = "brunei darussalam",
+   "capeverde"            = "cape verde",
+   "elsalvador"           = "el salvador",
+   "srilanka"             = "sri lanka",
+   "saudiarabia"          = "saudi arabia",
+   "puertorico"           = "puerto rico",
+   "newzealand"           = "new zealand",
+   
+   # Additional duplicates
+   "america"              = "usa",
+   "korea"                = "south korea",
+   "korea, repub"         = "south korea",
+   "iran, islami"         = "iran",
+   "burkinafaso"          = "burkina faso",
+   "easttimor"            = "east timor",
+   "french polyn"         = "french polynesia",
+   "cayman islan"         = "cayman islands",
+   "european uni"         = "european union",
+   "libyan arab jamahiriya" = "libya",
+   "libyanarabjamahiriya" = "libya",
+   "macedonia, t"         = "macedonia",
+   "moldova, rep"         = "moldova",
+   "russian fede"         = "russian federation",
+   "syrian arab"          = "syria",
+   "syrian arab republic" = "syria",
+   "taiwan, prov"         = "taiwan",
+   "virgin islan"         = "virgin islands",
+   "netherlandsantilles"  = "netherlands antilles",
+   "netherlands\""        = "netherlands",
+   "new zealand\""        = "new zealand",
+   "nigeria\""            = "nigeria",
+   "united arabemirates"  = "united arab emirates",
+   "virginislands(british)" = "virgin islands (british)",
+   "virginislands(u.s.)"  = "virgin islands (u.s.)",
+   "turksandcaicosislands" = "turks and caicos islands",
+   "saintkittsnevis"      = "saint kitts and nevis",
+   "saotomeandprincipe"   = "sao tome and principe",
+   "norfolkisland"        = "norfolk island"
+)
+
+#put regions of country values to a columns
+regions <- c(
+  "asia/pacific region", "european union", "asia", "africa", 
+  "europe", "southamerica", "westeuro", "easteuro", 
+  "middleeast", "oceania", "oseania", "regions"
+)
+combined_data$country[combined_data$country %in% regions] <- "regions"
+
+#non-country
+non_country <- c(
+  "anonymous proxy",
+  "satellite provider",
+  "unknown",
+  "NA",
+  "ascensionisland"
+)
+combined_data$country[combined_data$country %in% non_country] <- NA
 
 #WebServer
-combined_data$WebServer <- tolower(combined_data$WebServer)
-combined_data$Country <- trimws(combined_data$WebServer)
-combined_data$WebServer[combined_data$WebServer == "unknown"] <- NA
+combined_data$webserver <- tolower(combined_data$webserver)
+combined_data$webserver <- trimws(combined_data$webserver)
+combined_data$webserver[combined_data$webserver == "unknown"] <- NA
 
 #Encoding
 # CONVERT ENCODING COLUMN'S DATA TO LOWERCASE
-combined_data$Encoding <- tolower(combined_data$Encoding)
-combined_data$Encoding <- trimws(combined_data$Encoding)
-combined_data$Encoding[combined_data$Encoding == "null"] <- NA
+combined_data$encoding <- tolower(combined_data$encoding)
+combined_data$encoding <- trimws(combined_data$encoding)
+combined_data$encoding[combined_data$encoding == "null"] <- NA
+combined_data$encoding <- stringi::stri_enc_toutf8(combined_data$encoding)
+combined_data$encoding[combined_data$encoding %in% c("\\xff\\xfe", "xffxfe")] <- NA
+combined_data$notify[
+  str_detect(combined_data$notify, "\\?\\?")
+] <- NA
 
 #Ransom
-
-
 #DownTime
-
-
 #Loss
-
-
 # invalid values, the downtime and loss must not including negative value
 # replace invalid values with NA
-fulldata <- fulldata %>%
+combined_data <- combined_data %>%
   mutate(
     ransom   = ifelse(ransom <= 0, NA, ransom),
     downtime = ifelse(downtime < 0, NA, downtime),
     loss     = ifelse(loss <= 0, NA, loss)
   )
+combined_data$downtime[combined_data$downtime == 9999] <- NA
 summary(combined_data[, c("ransom", "downtime", "loss")])
+
+# handling missing values + check missing value
+colSums(is.na(combined_data))
 
 # REMOVE DUPLICATE DATA
 combined_data <- combined_data |>
@@ -114,22 +205,6 @@ combined_data <- combined_data %>%
     loss     = ifelse(is.na(loss), median(loss, na.rm = TRUE), loss)
   )
 
-#REMOVE DUPLICATE ROWS BASED ON ALL COLUMNS
-df_unique <- unique (df)
-
-#REMOVE DUPLICATE ROWS BASED ON SPECIFIC COLUMNS
-df_unique <-df[!duplicated(df)]
-
-#REMOVE DUPLICATES BASED ON SPECIFIC COLUMNS
-df_unique <- df[!duplicated(df$colnames),]
-
-# REMOVE DUPLICATE DATA
-df_unique <- df %>% distinct()
-
-#REMOVE DUPLICATED BASED ON SPECIFIC COLUMS
-df_unique <- df %>% distinct (column1, column2, .keep_all = TRUE)
-
-
 # Resolving inconsistent categorical values 
 # show raw inconsistencies first , inspecting unique values before cleaning
 sort(unique(combined_data$country))
@@ -137,3 +212,14 @@ sort(unique(combined_data$webserver))
 sort(unique(combined_data$encoding))
 sort(unique(combined_data$notify))
 
+summary(combined_data[, c("ransom", "downtime", "loss")])
+
+#Exact duplicates rows
+sum(duplicated(fulldata))
+#View duplicated row data
+fulldata[duplicated(fulldata), ]
+#check is the duplicated row been removed?
+sum(duplicated(combined_data))
+
+#View finally cleaned data
+table(combined_data$country)
