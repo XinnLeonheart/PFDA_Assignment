@@ -215,9 +215,9 @@ sort(unique(combined_data$notify))
 summary(combined_data[, c("ransom", "downtime", "loss")])
 
 #Exact duplicates rows
-sum(duplicated(fulldata))
+sum(duplicated(combined_data))
 #View duplicated row data
-fulldata[duplicated(fulldata), ]
+combined_data[duplicated(combined_data), ]
 #check is the duplicated row been removed?
 sum(duplicated(combined_data))
 
