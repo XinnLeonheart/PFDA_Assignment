@@ -4,9 +4,13 @@ library(readxl)
 library(dplyr)
 library(tidyverse)
 
-data_csv1 <- read_csv("D:/APU/Y2 Sem 3/Programming for Data Analysis/Assignment/AssignmentDatasets/HackingData_Part1.csv")
-data_xlsx2 <- read_excel("D:/APU/Y2 Sem 3/Programming for Data Analysis/Assignment/AssignmentDatasets/HackingData_Part2.xlsx")
-data_txt3  <- read_delim("D:/APU/Y2 Sem 3/Programming for Data Analysis/Assignment/AssignmentDatasets/HackingData_Part3.txt",
+#find current file
+getwd()
+list.files("C:/Users/Xenia Thor/Documents/")
+
+data_csv1 <- read_csv("C:/Users/Xenia Thor/Documents/HackingData_Part1.xlsx")
+data_xlsx2 <- read_excel("C:/Users/Xenia Thor/Documents/HackingData_Part2.xlsx")  
+data_txt3  <- read_delim("C:/Users/Xenia Thor/Documents/HackingData_Part3.txt",
                          delim = "\t")
 
 # check column name
@@ -53,6 +57,9 @@ combined_data[char_cols] <- lapply(
 describe(combined_data)
 # handling missing values + check missing value
 colSums(is.na(fulldata))
+
+# General summary of your data
+summary(combined_data)
 
 #Notify
 combined_data$Notify <- trimws(combined_data$Notify)
