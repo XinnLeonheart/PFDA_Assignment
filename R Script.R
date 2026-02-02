@@ -7,6 +7,11 @@ library(stringi)
 library(stringr)
 library(randomForest)
 library(lubridate)
+library(mice)
+library(gt)
+library(gtExtras)
+library(naniar)
+
 
 data_csv1 <- read_csv("D:/APU/Y2 Sem 3/Programming for Data Analysis/Assignment/AssignmentDatasets/HackingData_Part1.csv")
 data_xlsx2 <- read_excel("D:/APU/Y2 Sem 3/Programming for Data Analysis/Assignment/AssignmentDatasets/HackingData_Part2.xlsx")
@@ -234,14 +239,11 @@ colSums(is.na(combined_data))
 # check the structure and summary statistics of the combined dataset
 describe(combined_data)
 
-# handle missing values (NA)
-# replace NA with median on ransom, downtime, loss without affect outliers
-combined_data <- combined_data %>%
-  mutate(
-    ransom   = ifelse(is.na(ransom), median(ransom, na.rm = TRUE), ransom),
-    downtime = ifelse(is.na(downtime), median(downtime, na.rm = TRUE), downtime),
-    loss     = ifelse(is.na(loss), median(loss, na.rm = TRUE), loss)
-  )
+#visual representation of missing data
+md.pattern(combined_data)
+
+# see the percentage of missing data
+miss_var_summary(combined_data)
 
 # Resolving inconsistent categorical values 
 # show raw inconsistencies first , inspecting unique values before cleaning
@@ -250,14 +252,28 @@ sort(unique(combined_data$webserver))
 sort(unique(combined_data$encoding))
 sort(unique(combined_data$notify))
 
-summary(combined_data[, c("ransom", "downtime", "loss")])
+#check is the duplicated row been removed before fill in the NA
+sum(duplicated(combined_data))
 
-#Exact duplicates rows
-sum(duplicated(combined_data))
-#View duplicated row data
-combined_data[duplicated(combined_data), ]
-#check is the duplicated row been removed?
-sum(duplicated(combined_data))
+# Perform multiple imputation
+imputed_data <- mice(combined_data, m = 1, method = 'pmm', maxit = 5, seed = 123)
+
+# Complete the dataset with imputed values
+combined_data <- complete(imputed_data)
+
+
+# handle missing values (NA)
+# ransom, downtime, loss
+# replace NA with median on ransom, downtime, loss without affect outliers
+#combined_data <- combined_data %>%
+#  mutate(
+#    ransom   = ifelse(is.na(ransom), median(ransom, na.rm = TRUE), ransom),
+#    downtime = ifelse(is.na(downtime), median(downtime, na.rm = TRUE), downtime),
+#    loss     = ifelse(is.na(loss), median(loss, na.rm = TRUE), loss)
+#  )
+#summary(combined_data[, c("ransom", "downtime", "loss")])
+
+
 
 #View finally cleaned data
 table(combined_data$country)
