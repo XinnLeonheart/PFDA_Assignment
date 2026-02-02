@@ -40,11 +40,13 @@ combined_data <- bind_rows(
   data_txt3
 )
 
+# CONVERT ALL COLUMN NAME TO LOWER CASE
 names(combined_data) <- tolower(names(combined_data))
 
+# CHECK NUMBER OF ROW AND COLUMN
 dim(combined_data)
+
 glimpse(combined_data)
-head(combined_data)
 
 char_cols <- sapply(combined_data, is.character)
 names(char_cols[char_cols])
@@ -59,11 +61,31 @@ combined_data$notify <- trimws(combined_data$notify)
 combined_data$notify <- tolower(combined_data$notify)
 combined_data$notify[combined_data$notify == "unknown"] <- NA
 combined_data$notify[combined_data$notify == "null"] <- NA
-combined_data$date <- mdy(combined_data$date)
 sum(is.na(combined_data$date))
+# output: 0 (There is no NA value in column Date)
+
+class(combined_data$date)
+head(combined_data$date, 10)
+combined_data %>% count(date) %>% head(10)
+# found that the date format is different
+
+# convert the date format to the same
+combined_data$date <- parse_date_time(
+  combined_data$date,
+  orders = c("mdy", "ymd", "dmy")
+)
+class(combined_data$date)
+combined_data$date <- as.Date(combined_data$date)
+sum(is.na(combined_data$date))
+# check for bad values
 combined_data %>%
   filter(is.na(date)) %>%
-  distinct(date)
+  distinct(date) %>%
+  head(20)
+filter(combined_data, is.na(date))
+# double check for date format
+head(combined_data$date)
+# output: Year-Month-Date
 
 #Notify
 combined_data$notify <- trimws(combined_data$notify)
