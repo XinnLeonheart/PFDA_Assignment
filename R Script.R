@@ -5,6 +5,8 @@ library(dplyr)
 library(tidyverse)
 library(stringi)
 library(stringr)
+library(randomForest)
+library(lubridate)
 
 data_csv1 <- read_csv("D:/APU/Y2 Sem 3/Programming for Data Analysis/Assignment/AssignmentDatasets/HackingData_Part1.csv")
 data_xlsx2 <- read_excel("D:/APU/Y2 Sem 3/Programming for Data Analysis/Assignment/AssignmentDatasets/HackingData_Part2.xlsx")
@@ -42,7 +44,6 @@ names(combined_data) <- tolower(names(combined_data))
 
 dim(combined_data)
 glimpse(combined_data)
-nrow(combined_data)
 head(combined_data)
 
 char_cols <- sapply(combined_data, is.character)
@@ -53,11 +54,16 @@ combined_data[char_cols] <- lapply(
   function(x) iconv(x, from = "", to = "UTF-8", sub = "")
 )
 
-# check the structure and summary statistics of the combined dataset
-summary(combined_data)
-
-# see missing content
-describe(combined_data)
+#Date
+combined_data$notify <- trimws(combined_data$notify)
+combined_data$notify <- tolower(combined_data$notify)
+combined_data$notify[combined_data$notify == "unknown"] <- NA
+combined_data$notify[combined_data$notify == "null"] <- NA
+combined_data$date <- mdy(combined_data$date)
+sum(is.na(combined_data$date))
+combined_data %>%
+  filter(is.na(date)) %>%
+  distinct(date)
 
 #Notify
 combined_data$notify <- trimws(combined_data$notify)
@@ -91,6 +97,9 @@ combined_data$country <- tolower(combined_data$country)
 combined_data$country <- trimws(combined_data$country)
 # CONVERT UNKNOWN VALUES TO NA
 combined_data$country[combined_data$country == "unknown"] <- NA
+# EXPLORE WHAT COUNTRY EXIST
+count(combined_data, country) %>% print(n = Inf)
+
 #Fix spelling
 combined_data$country <- recode(combined_data$country,
    # Spelling variants and abbreviations
@@ -124,7 +133,8 @@ combined_data$country <- recode(combined_data$country,
    "libyanarabjamahiriya" = "libya",
    "macedonia, t"         = "macedonia",
    "moldova, rep"         = "moldova",
-   "russian fede"         = "russian federation",
+   "russian fede"         = "russia",
+   "russian federation"   = "russia",
    "syrian arab"          = "syria",
    "syrian arab republic" = "syria",
    "taiwan, prov"         = "taiwan",
@@ -164,6 +174,7 @@ combined_data$country[combined_data$country %in% non_country] <- NA
 combined_data$webserver <- tolower(combined_data$webserver)
 combined_data$webserver <- trimws(combined_data$webserver)
 combined_data$webserver[combined_data$webserver == "unknown"] <- NA
+count(combined_data, webserver)
 
 #Encoding
 # CONVERT ENCODING COLUMN'S DATA TO LOWERCASE
@@ -190,13 +201,24 @@ combined_data <- combined_data %>%
 combined_data$downtime[combined_data$downtime == 9999] <- NA
 summary(combined_data[, c("ransom", "downtime", "loss")])
 
-# handling missing values + check missing value
-colSums(is.na(combined_data))
-
 # REMOVE DUPLICATE DATA
 combined_data <- combined_data |>
   distinct()
 
+# check missing value
+colSums(is.na(combined_data))
+
+# see missing content
+# check the structure and summary statistics of the combined dataset
+describe(combined_data)
+
+# remove outlier for qualitative data
+
+
+
+# handle missing values (NA)
+
+  
 # replace NA with median on ransom, downtime, loss without affect outliers
 combined_data <- combined_data %>%
   mutate(
