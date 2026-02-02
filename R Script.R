@@ -291,3 +291,12 @@ notify_counts <- combined_data %>%
   filter(!is.na(notify)) %>%
   count(notify, sort = TRUE)
 notify_counts
+
+
+
+
+
+#Objective 4
+#validate data type
+
+
