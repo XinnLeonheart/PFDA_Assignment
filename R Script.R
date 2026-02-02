@@ -234,13 +234,26 @@ colSums(is.na(combined_data))
 # check the structure and summary statistics of the combined dataset
 describe(combined_data)
 
-# remove outlier for qualitative data
-
-
+# continue to remove outlier for qualitative data
+# Notify 
+notify_counts <- combined_data %>%
+  filter(!is.na(notify)) %>%
+  count(notify, sort = TRUE)
+notify_counts
+# Decide a threshold for "rare" categories
+# 1% of all non-NA notify rows
+total_notify <- sum(!is.na(combined_data$notify))
+threshold <- 0.01 * total_notify  
+# identify rare values
+rare_notify <- notify_counts$notify[notify_counts$n < threshold]
+# replace rare values with "other"
+combined_data$notify[combined_data$notify %in% rare_notify] <- "other"
+# check new counts
+combined_data %>%
+  filter(!is.na(notify)) %>%
+  count(notify, sort = TRUE)
 
 # handle missing values (NA)
-
-  
 # replace NA with median on ransom, downtime, loss without affect outliers
 combined_data <- combined_data %>%
   mutate(
