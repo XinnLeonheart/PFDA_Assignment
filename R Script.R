@@ -5,6 +5,13 @@ library(dplyr)
 library(tidyverse)
 library(stringi)
 library(stringr)
+library(randomForest)
+library(lubridate)
+library(mice)
+library(gt)
+library(gtExtras)
+library(naniar)
+
 
 #find current file
 getwd()
@@ -42,12 +49,13 @@ combined_data <- bind_rows(
   data_txt3
 )
 
+# CONVERT ALL COLUMN NAME TO LOWER CASE
 names(combined_data) <- tolower(names(combined_data))
 
+# CHECK NUMBER OF ROW AND COLUMN
 dim(combined_data)
+
 glimpse(combined_data)
-nrow(combined_data)
-head(combined_data)
 
 char_cols <- sapply(combined_data, is.character)
 names(char_cols[char_cols])
@@ -57,11 +65,36 @@ combined_data[char_cols] <- lapply(
   function(x) iconv(x, from = "", to = "UTF-8", sub = "")
 )
 
-# check the structure and summary statistics of the combined dataset
-summary(combined_data)
+#Date
+combined_data$notify <- trimws(combined_data$notify)
+combined_data$notify <- tolower(combined_data$notify)
+combined_data$notify[combined_data$notify == "unknown"] <- NA
+combined_data$notify[combined_data$notify == "null"] <- NA
+sum(is.na(combined_data$date))
+# output: 0 (There is no NA value in column Date)
 
-# see missing content
-describe(combined_data)
+class(combined_data$date)
+head(combined_data$date, 10)
+combined_data %>% count(date) %>% head(10)
+# found that the date format is different
+
+# convert the date format to the same
+combined_data$date <- parse_date_time(
+  combined_data$date,
+  orders = c("mdy", "ymd", "dmy")
+)
+class(combined_data$date)
+combined_data$date <- as.Date(combined_data$date)
+sum(is.na(combined_data$date))
+# check for bad values
+combined_data %>%
+  filter(is.na(date)) %>%
+  distinct(date) %>%
+  head(20)
+filter(combined_data, is.na(date))
+# double check for date format
+head(combined_data$date)
+# output: Year-Month-Date
 
 # General summary of your data
 summary(combined_data)
@@ -98,6 +131,9 @@ combined_data$country <- tolower(combined_data$country)
 combined_data$country <- trimws(combined_data$country)
 # CONVERT UNKNOWN VALUES TO NA
 combined_data$country[combined_data$country == "unknown"] <- NA
+# EXPLORE WHAT COUNTRY EXIST
+count(combined_data, country) %>% print(n = Inf)
+
 #Fix spelling
 combined_data$country <- recode(combined_data$country,
    # Spelling variants and abbreviations
@@ -131,7 +167,8 @@ combined_data$country <- recode(combined_data$country,
    "libyanarabjamahiriya" = "libya",
    "macedonia, t"         = "macedonia",
    "moldova, rep"         = "moldova",
-   "russian fede"         = "russian federation",
+   "russian fede"         = "russia",
+   "russian federation"   = "russia",
    "syrian arab"          = "syria",
    "syrian arab republic" = "syria",
    "taiwan, prov"         = "taiwan",
@@ -171,6 +208,7 @@ combined_data$country[combined_data$country %in% non_country] <- NA
 combined_data$webserver <- tolower(combined_data$webserver)
 combined_data$webserver <- trimws(combined_data$webserver)
 combined_data$webserver[combined_data$webserver == "unknown"] <- NA
+count(combined_data, webserver)
 
 #Encoding
 # CONVERT ENCODING COLUMN'S DATA TO LOWERCASE
@@ -197,20 +235,22 @@ combined_data <- combined_data %>%
 combined_data$downtime[combined_data$downtime == 9999] <- NA
 summary(combined_data[, c("ransom", "downtime", "loss")])
 
-# handling missing values + check missing value
-colSums(is.na(combined_data))
-
 # REMOVE DUPLICATE DATA
 combined_data <- combined_data |>
   distinct()
 
-# replace NA with median on ransom, downtime, loss without affect outliers
-combined_data <- combined_data %>%
-  mutate(
-    ransom   = ifelse(is.na(ransom), median(ransom, na.rm = TRUE), ransom),
-    downtime = ifelse(is.na(downtime), median(downtime, na.rm = TRUE), downtime),
-    loss     = ifelse(is.na(loss), median(loss, na.rm = TRUE), loss)
-  )
+# check missing value
+colSums(is.na(combined_data))
+
+# see missing content
+# check the structure and summary statistics of the combined dataset
+describe(combined_data)
+
+#visual representation of missing data
+md.pattern(combined_data)
+
+# see the percentage of missing data
+miss_var_summary(combined_data)
 
 # Resolving inconsistent categorical values 
 # show raw inconsistencies first , inspecting unique values before cleaning
@@ -219,14 +259,35 @@ sort(unique(combined_data$webserver))
 sort(unique(combined_data$encoding))
 sort(unique(combined_data$notify))
 
-summary(combined_data[, c("ransom", "downtime", "loss")])
+#check is the duplicated row been removed before fill in the NA
+sum(duplicated(combined_data))
 
-#Exact duplicates rows
-sum(duplicated(combined_data))
-#View duplicated row data
-combined_data[duplicated(combined_data), ]
-#check is the duplicated row been removed?
-sum(duplicated(combined_data))
+# Perform multiple imputation
+imputed_data <- mice(combined_data, m = 1, method = 'pmm', maxit = 5, seed = 123)
+
+# Complete the dataset with imputed values
+combined_data <- complete(imputed_data)
+
+
+# handle missing values (NA)
+# ransom, downtime, loss
+# replace NA with median on ransom, downtime, loss without affect outliers
+#combined_data <- combined_data %>%
+#  mutate(
+#    ransom   = ifelse(is.na(ransom), median(ransom, na.rm = TRUE), ransom),
+#    downtime = ifelse(is.na(downtime), median(downtime, na.rm = TRUE), downtime),
+#    loss     = ifelse(is.na(loss), median(loss, na.rm = TRUE), loss)
+#  )
+#summary(combined_data[, c("ransom", "downtime", "loss")])
+
+
 
 #View finally cleaned data
 table(combined_data$country)
+
+# Notify 
+# check frequency
+notify_counts <- combined_data %>%
+  filter(!is.na(notify)) %>%
+  count(notify, sort = TRUE)
+notify_counts
