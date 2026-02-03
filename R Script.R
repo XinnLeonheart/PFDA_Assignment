@@ -5,23 +5,16 @@ library(dplyr)
 library(tidyverse)
 library(stringi)
 library(stringr)
-library(randomForest)
 library(lubridate)
 library(mice)
 library(gt)
 library(gtExtras)
 library(naniar)
 
-
-#find current file
-getwd()
-list.files("C:/Users/Xenia Thor/Documents/")
-
-data_csv1 <- read_csv("C:/Users/Xenia Thor/Documents/HackingData_Part1.xlsx")
-data_xlsx2 <- read_excel("C:/Users/Xenia Thor/Documents/HackingData_Part2.xlsx")  
-data_txt3  <- read_delim("C:/Users/Xenia Thor/Documents/HackingData_Part3.txt",
+data_csv1 <- read_csv("D:/APU/Y2 Sem 3/Programming for Data Analysis/Assignment/AssignmentDatasets/HackingData_Part1.csv")
+data_xlsx2 <- read_excel("D:/APU/Y2 Sem 3/Programming for Data Analysis/Assignment/AssignmentDatasets/HackingData_Part2.xlsx")
+data_txt3  <- read_delim("D:/APU/Y2 Sem 3/Programming for Data Analysis/Assignment/AssignmentDatasets/HackingData_Part3.txt",
                          delim = "\t")
-
 # check column name
 colnames(data_csv1)
 colnames(data_xlsx2)
@@ -95,9 +88,6 @@ filter(combined_data, is.na(date))
 # double check for date format
 head(combined_data$date)
 # output: Year-Month-Date
-
-# General summary of your data
-summary(combined_data)
 
 #Notify
 combined_data$notify <- trimws(combined_data$notify)
@@ -243,9 +233,6 @@ combined_data <- combined_data |>
 colSums(is.na(combined_data))
 
 # see missing content
-# check the structure and summary statistics of the combined dataset
-describe(combined_data)
-
 #visual representation of missing data
 md.pattern(combined_data)
 
@@ -262,25 +249,114 @@ sort(unique(combined_data$notify))
 #check is the duplicated row been removed before fill in the NA
 sum(duplicated(combined_data))
 
-# Perform multiple imputation
-imputed_data <- mice(combined_data, m = 1, method = 'pmm', maxit = 5, seed = 123)
+# check the structure and summary statistics of the combined dataset
+describe(combined_data)
 
-# Complete the dataset with imputed values
-combined_data <- complete(imputed_data)
-
-
-# handle missing values (NA)
-# ransom, downtime, loss
-# replace NA with median on ransom, downtime, loss without affect outliers
-#combined_data <- combined_data %>%
-#  mutate(
-#    ransom   = ifelse(is.na(ransom), median(ransom, na.rm = TRUE), ransom),
-#    downtime = ifelse(is.na(downtime), median(downtime, na.rm = TRUE), downtime),
-#    loss     = ifelse(is.na(loss), median(loss, na.rm = TRUE), loss)
-#  )
-#summary(combined_data[, c("ransom", "downtime", "loss")])
+# General summary 
+summary(combined_data)
 
 
+
+# fill NA
+# create impute dataset
+impute_data <- combined_data %>%
+  select(
+    ransom,
+    downtime,
+    loss,
+    country,
+    webserver,
+    encoding
+  )
+
+# dealing with column notify
+
+
+# dealing with column url
+
+
+# dealing with column ip
+
+
+# dealing with column country
+
+
+# dealing with column ransom, downtime, loss
+# convert the data type to factor
+impute_data <- impute_data %>%
+  mutate(
+    country   = as.factor(country),
+    webserver = as.factor(webserver),
+    encoding  = as.factor(encoding)
+  )
+
+impute_data <- impute_data %>%
+  mutate(
+    ransom = log1p(ransom),
+    loss   = log1p(loss)
+  )
+
+meth <- make.method(impute_data)
+
+meth["ransom"]   <- "pmm"
+meth["loss"]     <- "pmm"
+meth["downtime"] <- "pmm"
+
+# Do NOT impute categorical variables
+meth[c("country", "webserver", "encoding")] <- ""
+
+pred <- make.predictorMatrix(impute_data)
+
+# No variable predicts itself
+diag(pred) <- 0
+
+# Numeric variables predict each other
+pred["ransom",   c("loss", "downtime")] <- 1
+pred["loss",     c("ransom", "downtime")] <- 1
+pred["downtime", c("ransom", "loss")] <- 1
+
+# Categorical variables do nothing
+pred[c("country", "webserver", "encoding"), ] <- 0
+pred[, c("country", "webserver", "encoding")] <- 0
+
+set.seed(123)
+
+imp <- mice(
+  impute_data,
+  method = meth,
+  predictorMatrix = pred,
+  m = 3,
+  maxit = 5,
+  printFlag = TRUE
+)
+
+completed <- complete(imp)
+
+completed <- completed %>%
+  mutate(
+    ransom = expm1(ransom),
+    loss   = expm1(loss)
+  )
+
+combined_data$ransom   <- completed$ransom
+combined_data$loss     <- completed$loss
+combined_data$downtime <- completed$downtime
+
+# Prepare data for comparison
+comparison <- combined_data %>%
+  select(ransom, loss, downtime) %>%
+  mutate(row_id = row_number()) %>%
+  pivot_longer(-row_id, names_to = "variable", values_to = "imputed_value")
+
+# Plot histograms
+ggplot(comparison, aes(x = imputed_value)) +
+  geom_histogram(bins = 50, fill = "steelblue", alpha = 0.7) +
+  facet_wrap(~variable, scales = "free") +
+  labs(title = "Distribution of Imputed Numeric Variables")
+
+densityplot(imp)
+
+summary(combined_data[c("ransom", "loss", "downtime")])
 
 #View finally cleaned data
 table(combined_data$country)
