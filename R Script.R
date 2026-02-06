@@ -10,8 +10,10 @@ library(mice)
 library(gt)
 library(gtExtras)
 library(naniar)
+library(Matrix)
+library(xgboost)
 
-data_csv1 <- read_csv("D:/APU/Y2 Sem 3/Programming for Data Analysis/Assignment/AssignmentDatasets/HackingData_Part1.csv", header = TRUE, sep = "," )
+data_csv1 <- read_csv("D:/APU/Y2 Sem 3/Programming for Data Analysis/Assignment/AssignmentDatasets/HackingData_Part1.csv")
 data_xlsx2 <- read_excel("D:/APU/Y2 Sem 3/Programming for Data Analysis/Assignment/AssignmentDatasets/HackingData_Part2.xlsx", sheet = 1)
 data_txt3  <- read_delim("D:/APU/Y2 Sem 3/Programming for Data Analysis/Assignment/AssignmentDatasets/HackingData_Part3.txt",
                          delim = "\t", col_names = TRUE)
@@ -198,13 +200,21 @@ combined_data$country[combined_data$country %in% non_country] <- NA
 combined_data$webserver <- tolower(combined_data$webserver)
 combined_data$webserver <- trimws(combined_data$webserver)
 combined_data$webserver[combined_data$webserver == "unknown"] <- NA
+combined_data$webserver[combined_data$webserver == ""] <- NA
+combined_data$webserver[combined_data$webserver == "na"] <- NA
+combined_data$webserver[combined_data$webserver == "null"] <- NA
+combined_data$webserver[combined_data$webserver == "&quot;&quot;"] <- NA
+# remove obvious non-webserver junk patterns
+combined_data$webserver[
+  str_detect(combined_data$webserver, "<script>|\\*\\*\\*\\*\\*|^[+]$|^\\d{1,3}(\\.\\d{1,3}){3}$")
+] <- NA
 count(combined_data, webserver)
 
 #Encoding
 # CONVERT ENCODING COLUMN'S DATA TO LOWERCASE
 combined_data$encoding <- tolower(combined_data$encoding)
 combined_data$encoding <- trimws(combined_data$encoding)
-combined_data$encoding[combined_data$encoding == "null"] <- NA
+combined_data$encoding[combined_data$encoding %in% c("", "na", "null")] <- NA
 combined_data$encoding <- stringi::stri_enc_toutf8(combined_data$encoding)
 combined_data$encoding[combined_data$encoding %in% c("\\xff\\xfe", "xffxfe")] <- NA
 combined_data$notify[
@@ -257,7 +267,7 @@ summary(combined_data)
 
 
 
-# fill NA
+# IMPUTE NA
 # create impute dataset
 impute_data <- combined_data %>%
   select(
@@ -269,19 +279,7 @@ impute_data <- combined_data %>%
     encoding
   )
 
-# dealing with column notify
-
-
-# dealing with column url
-
-
-# dealing with column ip
-
-
-# dealing with column country
-
-
-# dealing with column ransom, downtime, loss
+# deal with quantitative data first: column ransom, downtime, loss
 # convert the data type to factor
 impute_data <- impute_data %>%
   mutate(
@@ -358,8 +356,205 @@ densityplot(imp)
 
 summary(combined_data[c("ransom", "loss", "downtime")])
 
-#View finally cleaned data
-table(combined_data$country)
+# deal with qualitative column
+# notify
+# reduce cardinality
+top_notify <- combined_data %>%
+  filter(!is.na(notify)) %>%
+  count(notify, sort = TRUE) %>%
+  slice_head(n = 50) %>%
+  pull(notify)
+
+combined_data$notify[is.na(combined_data$notify)] <- "unknown"
+
+train_idx <- !is.na(combined_data$notify)
+
+X_df <- combined_data %>%
+  select(country, webserver, encoding, ransom, downtime, loss)
+
+X_df <- X_df %>%
+  mutate(
+    country   = ifelse(is.na(country),   "unknown_country", country),
+    webserver = ifelse(is.na(webserver), "unknown_webserver", webserver),
+    encoding  = ifelse(is.na(encoding),  "unknown_encoding", encoding),
+    ransom    = ifelse(is.na(ransom),    -1, ransom),
+    downtime  = ifelse(is.na(downtime),  -1, downtime),
+    loss      = ifelse(is.na(loss),      -1, loss)
+  )
+
+X_sparse <- sparse.model.matrix(~ . - 1, data = X_df)
+
+nrow(X_sparse)       # should equal nrow(combined_data)
+length(train_idx)    # should equal nrow(combined_data)
+
+X_train <- X_sparse[train_idx, ]
+X_miss  <- X_sparse[!train_idx, ]
+
+# url
+# no use oh no need clean
+
+# ip
+
+
+# country
+# Prepare data
+country_train_idx <- !is.na(combined_data$country)
+
+X_df <- combined_data %>%
+  select(webserver, encoding, ransom, downtime, loss) %>%
+  mutate(
+    webserver = ifelse(is.na(webserver), "unknown_webserver", webserver),
+    encoding  = ifelse(is.na(encoding),  "unknown_encoding", encoding),
+    ransom    = ifelse(is.na(ransom),    -1, ransom),
+    downtime  = ifelse(is.na(downtime),  -1, downtime),
+    loss      = ifelse(is.na(loss),      -1, loss)
+  )
+
+X_sparse <- sparse.model.matrix(~ . - 1, data = X_df)
+
+y <- as.integer(factor(combined_data$country[country_train_idx])) - 1
+num_class <- length(unique(y))
+
+# Train model
+dtrain <- xgb.DMatrix(X_sparse[country_train_idx, ], label = y)
+
+params <- list(
+  objective = "multi:softprob",
+  num_class = num_class,
+  max_depth = 6,
+  eta = 0.2,
+  subsample = 0.8,
+  colsample_bytree = 0.8,
+  eval_metric = "mlogloss"
+)
+
+country_model <- xgb.train(
+  params = params,
+  data = dtrain,
+  nrounds = 100,
+  verbose = 0
+)
+
+# Predict missing country
+miss_idx <- is.na(combined_data$country)
+dmiss <- xgb.DMatrix(X_sparse[miss_idx, ])
+pred <- predict(country_model, dmiss)
+
+pred_mat <- matrix(pred, ncol = num_class, byrow = TRUE)
+pred_class <- max.col(pred_mat) - 1
+
+country_levels <- levels(factor(combined_data$country[country_train_idx]))
+combined_data$country[miss_idx] <- country_levels[pred_class + 1]
+
+# check
+sum(is.na(combined_data$country))   # should be 0
+count(combined_data, country, sort = TRUE)
+
+
+# webserver
+# prepare predictors
+webserver_train_idx <- !is.na(combined_data$webserver)
+
+X_df_ws <- combined_data %>%
+  select(country, encoding, ransom, downtime, loss) %>%
+  mutate(
+    country  = ifelse(is.na(country),  "unknown_country",  country),
+    encoding = ifelse(is.na(encoding), "unknown_encoding", encoding),
+    ransom   = ifelse(is.na(ransom),   -1, ransom),
+    downtime = ifelse(is.na(downtime), -1, downtime),
+    loss     = ifelse(is.na(loss),     -1, loss)
+  )
+
+X_sparse_ws <- sparse.model.matrix(~ . - 1, data = X_df_ws)
+
+# Train XGBoost multi-class model for WebServer
+y_ws <- as.integer(factor(combined_data$webserver[webserver_train_idx])) - 1
+num_class_ws <- length(unique(y_ws))
+
+dtrain_ws <- xgb.DMatrix(X_sparse_ws[webserver_train_idx, ], label = y_ws)
+
+params_ws <- list(
+  objective = "multi:softprob",
+  num_class = num_class_ws,
+  max_depth = 6,
+  eta = 0.2,
+  subsample = 0.8,
+  colsample_bytree = 0.8,
+  eval_metric = "mlogloss"
+)
+
+webserver_model <- xgb.train(
+  params = params_ws,
+  data = dtrain_ws,
+  nrounds = 100,
+  verbose = 0
+)
+
+# Predict missing WebServer 
+miss_ws <- is.na(combined_data$webserver)
+dmiss_ws <- xgb.DMatrix(X_sparse_ws[miss_ws, ])
+
+pred_ws <- predict(webserver_model, dmiss_ws)
+pred_mat_ws <- matrix(pred_ws, ncol = num_class_ws, byrow = TRUE)
+pred_class_ws <- max.col(pred_mat_ws) - 1
+
+webserver_levels <- levels(factor(combined_data$webserver[webserver_train_idx]))
+combined_data$webserver[miss_ws] <- webserver_levels[pred_class_ws + 1]
+
+sum(is.na(combined_data$webserver))  
+
+# encoding
+# train split mask
+enc_train_idx <- !is.na(combined_data$encoding)
+# build features
+X_df_enc <- combined_data %>%
+  select(country, webserver, ransom, downtime, loss) %>%
+  mutate(
+    country   = ifelse(is.na(country),   "unknown_country",   country),
+    webserver = ifelse(is.na(webserver), "unknown_webserver", webserver),
+    ransom    = ifelse(is.na(ransom),    -1, ransom),
+    downtime  = ifelse(is.na(downtime),  -1, downtime),
+    loss      = ifelse(is.na(loss),      -1, loss)
+  )
+
+X_sparse_enc <- sparse.model.matrix(~ . - 1, data = X_df_enc)
+# encode target labels
+y_enc <- as.integer(factor(combined_data$encoding[enc_train_idx])) - 1
+num_class_enc <- length(unique(y_enc))
+
+dtrain_enc <- xgb.DMatrix(X_sparse_enc[enc_train_idx, ], label = y_enc)
+# train multiclass model
+set.seed(123)
+
+params_enc <- list(
+  objective = "multi:softprob",
+  num_class = num_class_enc,
+  max_depth = 6,
+  eta = 0.2,
+  subsample = 0.8,
+  colsample_bytree = 0.8,
+  eval_metric = "mlogloss"
+)
+
+enc_model <- xgb.train(
+  params = params_enc,
+  data = dtrain_enc,
+  nrounds = 100,
+  verbose = 0
+)
+# predict missing rows and fill NA
+miss_enc <- is.na(combined_data$encoding)
+dmiss_enc <- xgb.DMatrix(X_sparse_enc[miss_enc, ])
+
+pred_enc <- predict(enc_model, dmiss_enc)
+pred_mat_enc <- matrix(pred_enc, ncol = num_class_enc, byrow = TRUE)
+pred_class_enc <- max.col(pred_mat_enc) - 1
+
+enc_levels <- levels(factor(combined_data$encoding[enc_train_idx]))
+combined_data$encoding[miss_enc] <- enc_levels[pred_class_enc + 1]
+
+sum(is.na(combined_data$encoding))  
+count(combined_data, encoding, sort = TRUE)
 
 # Notify 
 # check frequency
