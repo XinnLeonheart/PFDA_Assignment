@@ -556,13 +556,12 @@ combined_data$encoding[miss_enc] <- enc_levels[pred_class_enc + 1]
 sum(is.na(combined_data$encoding))  
 count(combined_data, encoding, sort = TRUE)
 
-# Notify 
-# check frequency
-notify_counts <- combined_data %>%
-  filter(!is.na(notify)) %>%
-  count(notify, sort = TRUE)
-notify_counts
+# Check overall result
+str(cleaned_data)
+summary(cleaned_data)
 
+# Export cleaned data to CSV
+write_csv(combined_data, "cleaned_data.csv")
 
 
 
