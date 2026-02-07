@@ -559,6 +559,7 @@ count(combined_data, encoding, sort = TRUE)
 # Check overall result
 str(combined_data)
 summary(combined_data)
+describe(combined_data)
 
 # Export cleaned data to CSV
 write_csv(combined_data, "cleaned_data.csv")
