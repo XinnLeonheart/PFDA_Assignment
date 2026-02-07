@@ -557,8 +557,8 @@ sum(is.na(combined_data$encoding))
 count(combined_data, encoding, sort = TRUE)
 
 # Check overall result
-str(cleaned_data)
-summary(cleaned_data)
+str(combined_data)
+summary(combined_data)
 
 # Export cleaned data to CSV
 write_csv(combined_data, "cleaned_data.csv")
