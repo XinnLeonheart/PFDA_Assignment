@@ -33,7 +33,7 @@ data_xlsx2 <- data_xlsx2 |>
 data_txt3 <- data_txt3 |>
   mutate(across(all_of(numeric_cols), as.numeric))
 
-data_csv1  <- data_csv1  |> mutate(Date = as.character(Date))
+data_csv1  <- data_csv1  |> mutate(Date = as.character(Date))                   
 data_xlsx2 <- data_xlsx2 |> mutate(Date = as.character(Date))
 data_txt3  <- data_txt3  |> mutate(Date = as.character(Date))
 
@@ -342,7 +342,7 @@ combined_data$downtime <- completed$downtime
 
 # Prepare data for comparison
 comparison <- combined_data %>%
-  select(ransom, loss, downtime) %>%
+  select(loss, downtime) %>%
   mutate(row_id = row_number()) %>%
   pivot_longer(-row_id, names_to = "variable", values_to = "imputed_value")
 
@@ -352,7 +352,8 @@ ggplot(comparison, aes(x = imputed_value)) +
   facet_wrap(~variable, scales = "free") +
   labs(title = "Distribution of Imputed Numeric Variables")
 
-densityplot(imp)
+densityplot(imp, ~ downtime)
+densityplot(imp, ~ loss)
 
 summary(combined_data[c("ransom", "loss", "downtime")])
 
